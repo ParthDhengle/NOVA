@@ -66,9 +66,12 @@ async def api_login(request: LoginRequest):
     try:
         uid = sign_in_with_email(request.email, request.password)
         custom_token = auth.create_custom_token(uid)
-        return {"uid": uid, "custom_token": custom_token.decode()}
+        if isinstance(custom_token, bytes):
+            custom_token = custom_token.decode("utf-8")
+        return {"uid": uid, "custom_token": custom_token}
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
 
 @auth_router.post("/signup")
 async def api_signup(request: LoginRequest):
@@ -76,7 +79,9 @@ async def api_signup(request: LoginRequest):
         user_data = create_user(request.email, request.password, request.email)
         uid = user_data['uid']
         custom_token = auth.create_custom_token(uid)
-        return {"uid": uid, "custom_token": custom_token.decode()}
+        if isinstance(custom_token, bytes):
+            custom_token = custom_token.decode("utf-8")
+        return {"uid": uid, "custom_token": custom_token}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

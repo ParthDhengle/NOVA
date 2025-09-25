@@ -3,7 +3,7 @@
  * 
  * Provides authentication state and methods throughout the app
  */
-
+import { getAuth, signInWithCustomToken } from 'firebase/auth';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient, authManager, isAuthenticated } from '@/api/client';
 
@@ -80,10 +80,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     try {
       const response = await apiClient.login(email, password);
-      authManager.setAuth(response.custom_token, response.uid);  // Set token
-      console.log('Token set:', response.custom_token.substring(0, 20) + '...');
       
-      const profile = await apiClient.getProfile();
+      // NEW: Exchange custom token for ID token
+      
+      const auth = getAuth();  // Assumes Firebase is initialized elsewhere (e.g., in index.tsx)
+      const credential = await signInWithCustomToken(auth, response.custom_token);
+      const idToken = await credential.user.getIdToken();
+      
+      authManager.setAuth(idToken, response.uid);  // Use ID token instead
+      console.log('ID Token set:', idToken.substring(0, 20) + '...');
+      
+      const profile = await apiClient.getProfile();  // This should now work
       console.log('Profile fetched after login:', profile);  // Debug
       
       setState({

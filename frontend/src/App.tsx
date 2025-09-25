@@ -13,6 +13,9 @@ import DashboardCard from "@/components/DashboardCard"; // Assume this exists
 import Settings from "@/components/Settings"; // Assume this exists
 import { useNova } from "@/context/NovaContext";
 import NotFound from "./pages/NotFound";
+import { initializeApp } from 'firebase/app';
+
+
 const queryClient = new QueryClient();
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
