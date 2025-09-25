@@ -1,0 +1,55 @@
+[project]
+name = "agent_demo"
+version = "0.1.0"
+description = "agent_demo using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]>=0.67.1,<1.0.0",
+    "fastapi>=0.116.1",
+    "pyside6>=6.9.2",
+    "requests>=2.32.4",
+    "uiautomation>=2.0.29",
+    "uvicorn>=0.35.0",
+    "pyperclip>=1.8.2",
+    "keyboard>=0.13.5",
+    "psutil>=5.9.0",
+    "python-dotenv>=1.0.0",
+    "typing_extensions>=4.12.2",
+    "langchain>=0.3.4",
+    "faiss-cpu>=1.9.0",
+    "sentence-transformers>=3.2.1",
+    "google-generativeai>=0.8.3",
+    "google-auth>=2.35.0",
+    "google-auth-oauthlib>=1.2.1",
+    "google-api-python-client>=2.149.0",  # Added for Custom Search API
+    "pyautogui",
+    "json5>=0.9.25",
+    "firebase_admin",
+    "langchain_huggingface",
+    "PBI-dashboard-creator",
+    "pandas>=1.5.0",
+    "python-dotenv>=0.19.0",
+    "PyPDF2>=3.0.1",
+    "python-docx>=1.1.2",
+    "groq"
+]
+
+[project.scripts]
+agent_demo = "agent_demo.main:run"
+run_crew = "agent_demo.main:run"
+train = "agent_demo.main:train"
+replay = "agent_demo.main:replay"
+test = "agent_demo.main:test"
+desktop_ui = "agent_demo.desktop_app:main"
+ui = "agent_demo.main:run_ui"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_demo"]
+
+[tool.crewai]
+type = "crew"

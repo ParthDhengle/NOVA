@@ -1,0 +1,27 @@
+.env
+__pycache__/
+.DS_Store
+testapi.py
+.venv
+execution_plan.json
+token.json
+agent.log
+agent_execution.log
+client_secret.json
+app_index.json
+aliases.json
+models--openai--whisper-medium
+node_modules/
+lock.json
+New_test
+uv.lock
+Project Overview 1 NOVA.pdf
+# Ignore everything in short_term
+knowledge/memory/short_term/*
+
+# But keep the .gitkeep file
+!knowledge/memory/short_term/.gitkeep
+index.faiss
+index.pkl
+NOVA_firebase_credentials.json
+app.log

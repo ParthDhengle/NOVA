@@ -1,0 +1,25 @@
+# src/config/tasks.yaml (improved)
+classify_query:
+  description: |
+    Inputs: Query: {user_query} (PRIMARY FOCUS—prioritize this; avoid over-relying on history/facts) | File: {file_content} (RAG-extracted if large) | History: {full_history} (last 8 turns, summarized if long) | Profile: {user_profile} | Ops: {available_ops_info} | Facts: {relevant_facts} (RAG-retrieved) | OS: {os_info}
+    Classify: 'direct' (simple, no ops) or 'agentic' (ops needed).
+    Direct: Craft display_response using context; end with suggestions (e.g., "Want me to create a related task? Or analyze a file?").
+    Agentic: Generate sequenced operations [] (repetitive ok, e.g., multiple run_command for file ops or task scheduling); operation_not_available [] if needed; user_summarized_query (intent + solution summary for storage/token savings).
+    Always extract facts [] if imp details mentioned.
+    Output STRICT JSON only. No extra text.
+  expected_output: "Strict JSON object."
+  agent: classifier
+
+synthesize_response:
+  description: |
+    User Requirements: {user_summarized_requirements}
+    Operation Results: {op_results}
+    Synthesize: display_response (coherent answer, mention ops: "Executed X: results"; end with suggestions: "Next, you could Y—want me to? Or Z?"), extracted_fact [] (if imp).
+    Output STRICT JSON only.
+  expected_output: "Strict JSON object."
+  agent: synthesizer
+summarize_history:
+  description: |
+    Summarize history concisely (100-300 tokens), focusing on key topics/intents: {full_history}
+  expected_output: "Summary string."
+  agent: summarizer
