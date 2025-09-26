@@ -115,8 +115,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     try {
       const response = await apiClient.signup(email, password);
+      // Exchange custom token for ID token (same as login)
+      const auth = getAuth();
+      const credential = await signInWithCustomToken(auth, response.custom_token);
+      const idToken = await credential.user.getIdToken();
+      authManager.setAuth(idToken, response.uid);
       const profile = await apiClient.getProfile();
-      
       setState({
         user: { uid: response.uid, ...profile },
         isAuthenticated: true,

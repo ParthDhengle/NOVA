@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 import json
 from routes.events import get_google_creds as get_google_creds_events
 from routes.tasks import get_google_creds as get_google_creds_tasks
+from firebase_client import get_user_profile, set_user_profile
+
 load_dotenv()
 client_secret_path = os.getenv("GOOGLE_CLIENT_SECRET_PATH")
 
@@ -68,6 +70,12 @@ async def api_login(request: LoginRequest):
         custom_token = auth.create_custom_token(uid)
         if isinstance(custom_token, bytes):
             custom_token = custom_token.decode("utf-8")
+        
+        # NEW: Create profile if missing
+        profile = get_user_profile(uid)
+        if not profile:
+            set_user_profile(uid, request.email)
+        
         return {"uid": uid, "custom_token": custom_token}
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

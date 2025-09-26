@@ -28,7 +28,10 @@ print("Client Secret:", GOOGLE_CLIENT_SECRET)
 tasks_router = APIRouter(prefix="/api/tasks")
 
 def get_google_creds(uid: str) -> Credentials:
-    user = db.collection('users').document(uid).get().to_dict()
+    user_doc = db.collection('users').document(uid).get()
+    if not user_doc.exists:
+        raise HTTPException(404, "User not found")  # Or 401 if preferred; add logging if needed
+    user = user_doc.to_dict()
     tokens = user.get('integrations', {}).get('google_calendar', {}).get('tokens', {})
     if not tokens.get('refresh_token'):
         raise HTTPException(401, "Google integration not connected")

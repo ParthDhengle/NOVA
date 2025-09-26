@@ -16,7 +16,7 @@ from datetime import datetime
 import inspect
 import json 
 from firebase_client import get_current_uid, db, get_user_profile, update_user_profile
-from chat_history import save_chat_message, get_chat_history    
+from firebase_client import save_chat_message, get_chat_history    
 from operations_store import queue_operation_local, update_operation_local
 from typing import List
 
@@ -156,11 +156,13 @@ async def update_op_status(op_id: str, status: str, uid: str = Depends(get_curre
 
 @app.get("/profile")
 async def get_profile(uid: str = Depends(get_current_uid)):
-    return get_user_profile()
+    # Return the authenticated user's profile
+    return get_user_profile(uid)
 
 @app.put("/profile")
 async def update_profile(updates: dict, uid: str = Depends(get_current_uid)):
-    success = update_user_profile(updates)
+    # Update the authenticated user's profile
+    success = update_user_profile(uid, updates)
     if not success:
         raise HTTPException(status_code=500, detail="Update failed")
     return {"success": True}

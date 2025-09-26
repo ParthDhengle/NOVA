@@ -50,7 +50,8 @@ async def get_current_uid(token: str = Depends(security)):
         uid = decoded_token.get('uid')
         return uid
     except Exception as e:
-      raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+        print(f"Token verification error: {str(e)}")  # NEW: Log exact error
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
     
     
 def verify_id_token(id_token: str) -> str:

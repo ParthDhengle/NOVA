@@ -6,7 +6,6 @@ import type {
   AgentOp,
   NovaRole
 } from './types';
-import axios from 'axios';
 // API Configuration
 const API_BASE_URL = 'http://127.0.0.1:8001';
 
@@ -19,7 +18,8 @@ class AuthManager {
     this.token = token;
   }
   private getHeaders() {
-    return this.token ? { Authorization: `Bearer ${this.token}` } : {};
+    const { token } = this.getAuth();
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
   setAuth(token: string, uid: string) {
     this.token = token;
@@ -205,8 +205,7 @@ class ApiClient {
 
   // Profile endpoints
   async getProfile() {
-    const response = await axios.get(`${API_BASE_URL}/profile`, { headers: this.getHeaders() });
-    return response.data;
+    return this.request('/profile');
   }
 
   async updateProfile(updates: any) {
@@ -217,10 +216,10 @@ class ApiClient {
   }
 
   // Operations endpoints
-   async getOperations(status?: string) {
+  async getOperations(status?: string) {
     const params = status ? `?status=${status}` : '';
     return this.request<AgentOp[]>(`/operations${params}`);
-  }s
+  }
   async queueOperation(name: string, parameters: any) {
     const response = await this.request<{ op_id: string }>('/operations', {
       method: 'POST',
