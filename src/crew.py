@@ -119,7 +119,7 @@ class AiAgent:
         try:
             # Load chat history
             history = ChatHistory.load_history(session_id)
-            user_profile = self.memory_manager.get_user_profile()
+            user_profile = self.memory_manager.get_user_profile(uid)
             file_content = self._process_file(file_path) if file_path else None
             
             # Load available operations
@@ -181,7 +181,7 @@ class AiAgent:
                         pass
                 return {'mode': 'direct', 'display_response': f"Classification failed: {raw[:100]}... Please rephrase.", 'extracted_fact': []}  # Always dict with safe defaults
             
-            classification = parse_json_with_retry(classification_raw)
+            classification = parse_json_with_retry(raw=classification_raw)
             
             # Handle user summary
             user_summarized_query = classification.get('user_summarized_query', 'User intent unclear.')

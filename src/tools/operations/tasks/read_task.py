@@ -20,8 +20,6 @@ if client_secret_path and os.path.exists(client_secret_path):
         GOOGLE_CLIENT_ID = creds.get("client_id")
         GOOGLE_CLIENT_SECRET = creds.get("client_secret")
 
-print("Client ID:", GOOGLE_CLIENT_ID)
-print("Client Secret:", GOOGLE_CLIENT_SECRET)
 
 def read_task(status: Optional[str] = None) -> Tuple[bool, str]:
     try:

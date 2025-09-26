@@ -8,7 +8,8 @@ import type {
 } from './types';
 // API Configuration
 const API_BASE_URL = 'http://127.0.0.1:8001';
-
+import { getAuth } from 'firebase/auth';
+import { useAuth } from '@/context/AuthContext';
 // Auth token management
 class AuthManager {
   private token: string | null = null;
@@ -71,8 +72,12 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const { token } = authManager.getAuth();
-   
+    const authInstance = getAuth(); // NEW: Get auth instance
+    let token: string | undefined;
+    if (authInstance.currentUser) {
+      token = await authInstance.currentUser.getIdToken(/* forceRefresh */ false); // Fetch fresh if needed
+    }
+
     const config: RequestInit = {
       ...options,
       headers: {
@@ -88,6 +93,8 @@ class ApiClient {
       if (!response.ok) {
         if (response.status === 401) {
           authManager.clearAuth();
+          // NEW: Also sign out from Firebase
+          await authInstance.signOut();
           throw new Error('Authentication failed. Please login again.');
         }
        
@@ -240,7 +247,7 @@ export const apiClient = new ApiClient(API_BASE_URL);
 export { authManager };
 
 // Helper function to check if user is authenticated
-export const isAuthenticated = () => authManager.isAuthenticated();
+export const isAuthenticated = () => useAuth().isAuthenticated;
 
 // Helper function to get current user info
 export const getCurrentUser = () => {

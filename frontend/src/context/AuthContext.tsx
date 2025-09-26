@@ -1,11 +1,7 @@
-/**
- * Nova AI Assistant - Authentication Context
- * 
- * Provides authentication state and methods throughout the app
- */
-import { getAuth, signInWithCustomToken } from 'firebase/auth';
+// frontend/src/context/AuthContext.tsx
+import { getAuth, signInWithCustomToken, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiClient, authManager, isAuthenticated } from '@/api/client';
+import { apiClient, authManager } from '@/api/client'; // Keep authManager for UID if needed, but minimize
 
 interface User {
   uid: string;
@@ -23,7 +19,7 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -41,127 +37,79 @@ export function AuthProvider({ children }: AuthProviderProps) {
     error: null,
   });
 
-  // Check authentication status on mount
+  const auth = getAuth();
+
+  // Listen to Firebase auth state changes (handles persistence)
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (isAuthenticated()) {
-          const { uid } = authManager.getAuth();
-          const profile = await apiClient.getProfile();
-          
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const uid = firebaseUser.uid;
+        try {
+          const profile = await apiClient.getProfile(); // Fetch profile (will use fresh token in apiClient)
           setState({
             user: { uid, ...profile },
             isAuthenticated: true,
             isLoading: false,
             error: null,
           });
-        } else {
-          setState(prev => ({
-            ...prev,
-            isLoading: false,
-          }));
+          authManager.setAuth('', uid); // Optional: Store UID only if needed elsewhere
+        } catch (error) {
+          console.error('Failed to fetch profile:', error);
+          setState(prev => ({ ...prev, error: 'Failed to load profile' }));
         }
-      } catch (error) {
-        console.error('Auth check failed:', error);
+      } else {
+        authManager.clearAuth();
         setState({
           user: null,
           isAuthenticated: false,
           isLoading: false,
-          error: 'Failed to verify authentication',
+          error: null,
         });
       }
-    };
+    });
 
-    checkAuth();
+    return unsubscribe;
   }, []);
 
   const login = async (email: string, password: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
     try {
-      const response = await apiClient.login(email, password);
-      
-      // NEW: Exchange custom token for ID token
-      
-      const auth = getAuth();  // Assumes Firebase is initialized elsewhere (e.g., in index.tsx)
-      const credential = await signInWithCustomToken(auth, response.custom_token);
-      const idToken = await credential.user.getIdToken();
-      
-      authManager.setAuth(idToken, response.uid);  // Use ID token instead
-      console.log('ID Token set:', idToken.substring(0, 20) + '...');
-      
-      const profile = await apiClient.getProfile();  // This should now work
-      console.log('Profile fetched after login:', profile);  // Debug
-      
-      setState({
-        user: { uid: response.uid, ...profile },
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
+      const response = await apiClient.login(email, password); // Gets custom_token
+      await signInWithCustomToken(auth, response.custom_token); // Exchange; auth state will update via listener
     } catch (error) {
-      console.error('Login failed:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Login failed',
-      }));
+      const errMsg = error instanceof Error ? error.message : 'Login failed';
+      setState(prev => ({ ...prev, isLoading: false, error: errMsg }));
       throw error;
     }
   };
 
   const signup = async (email: string, password: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
     try {
       const response = await apiClient.signup(email, password);
-      // Exchange custom token for ID token (same as login)
-      const auth = getAuth();
-      const credential = await signInWithCustomToken(auth, response.custom_token);
-      const idToken = await credential.user.getIdToken();
-      authManager.setAuth(idToken, response.uid);
-      const profile = await apiClient.getProfile();
-      setState({
-        user: { uid: response.uid, ...profile },
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
+      await signInWithCustomToken(auth, response.custom_token); // Same as login
     } catch (error) {
-      console.error('Signup failed:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Signup failed',
-      }));
+      const errMsg = error instanceof Error ? error.message : 'Signup failed';
+      setState(prev => ({ ...prev, isLoading: false, error: errMsg }));
       throw error;
     }
   };
 
-  const logout = () => {
-    apiClient.logout();
-    setState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-    });
+  const logout = async () => {
+    try {
+      await auth.signOut();
+      apiClient.logout(); // Clear any backend sessions if needed
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const clearError = () => {
     setState(prev => ({ ...prev, error: null }));
   };
 
-  const value: AuthContextType = {
-    ...state,
-    login,
-    signup,
-    logout,
-    clearError,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ ...state, login, signup, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );

@@ -20,8 +20,6 @@ if client_secret_path and os.path.exists(client_secret_path):
         GOOGLE_CLIENT_ID = creds.get("client_id")
         GOOGLE_CLIENT_SECRET = creds.get("client_secret")
 
-print("Client ID:", GOOGLE_CLIENT_ID)
-print("Client Secret:", GOOGLE_CLIENT_SECRET)
 
 def update_task(task_id: str, status: Optional[str] = None, title: Optional[str] = None, 
                 description: Optional[str] = None, deadline: Optional[str] = None, 

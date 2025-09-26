@@ -21,8 +21,6 @@ if client_secret_path and os.path.exists(client_secret_path):
         GOOGLE_CLIENT_ID = creds.get("client_id")
         GOOGLE_CLIENT_SECRET = creds.get("client_secret")
 
-print("Client ID:", GOOGLE_CLIENT_ID)
-print("Client Secret:", GOOGLE_CLIENT_SECRET)
 
 def create_task(title: str, description: Optional[str] = None, deadline: Optional[str] = None, 
                 priority: str = "Medium", tags: Optional[List[str]] = None) -> Tuple[bool, str]:

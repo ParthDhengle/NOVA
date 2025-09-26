@@ -141,8 +141,8 @@ class MemoryManager:
         add_summary(date=date.today().isoformat(), summary_text=narrative)
         return narrative
 
-    def get_user_profile(self):
-        return get_user_profile()
+    def get_user_profile(self, uid: str):  # <- Add uid parameter
+        return get_user_profile(uid)
 
     def assemble_prompt_context(self, summarized_history, user_profile, narrative_summary, relevant_long_term):
         context = f"Short-term: {summarized_history}\nProfile: {json.dumps(user_profile)}\nNarrative: {narrative_summary}\nLong-term: {relevant_long_term}\n"
