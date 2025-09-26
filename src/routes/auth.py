@@ -1,19 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from firebase_client import sign_in_with_email, create_user, auth
-from firebase_client import get_current_uid
+from firebase_client import sign_in_with_email, create_user, get_current_uid
 from google_auth_oauthlib.flow import Flow
 from firebase_admin import firestore
 from google.oauth2.credentials import Credentials
 from firebase_client import db
 import os
-from typing import Dict
+from firebase_client import set_initial_profile, is_profile_complete
 from dotenv import load_dotenv
 import json
 from routes.events import get_google_creds as get_google_creds_events
 from routes.tasks import get_google_creds as get_google_creds_tasks
 from firebase_client import get_user_profile, set_user_profile
-
+from firebase_admin import auth
 load_dotenv()
 client_secret_path = os.getenv("GOOGLE_CLIENT_SECRET_PATH")
 
@@ -61,6 +60,23 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+@auth_router.post("/signup")
+async def api_signup(request: LoginRequest):
+    try:
+        user_data = create_user(request.email, request.password)
+        uid = user_data['uid']
+        
+        # Create initial profile (incomplete)
+        set_initial_profile(uid, request.email)
+        
+        custom_token = auth.create_custom_token(uid)
+        if isinstance(custom_token, bytes):
+            custom_token = custom_token.decode("utf-8")
+        
+        return {"uid": uid, "custom_token": custom_token, "profile_complete": False}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @auth_router.post("/login")
 async def api_login(request: LoginRequest):
     try:
@@ -69,27 +85,18 @@ async def api_login(request: LoginRequest):
         if isinstance(custom_token, bytes):
             custom_token = custom_token.decode("utf-8")
         
-        # NEW: Create profile if missing
+        # Check if profile is complete
+        profile_complete = is_profile_complete(uid)
+        
+        # Create profile if missing (for existing users)
         profile = get_user_profile(uid)
         if not profile:
-            set_user_profile(uid, request.email)
+            set_initial_profile(uid, request.email)
+            profile_complete = False
         
-        return {"uid": uid, "custom_token": custom_token}
+        return {"uid": uid, "custom_token": custom_token, "profile_complete": profile_complete}
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
-
-
-@auth_router.post("/signup")
-async def api_signup(request: LoginRequest):
-    try:
-        user_data = create_user(request.email, request.password, request.email)
-        uid = user_data['uid']
-        custom_token = auth.create_custom_token(uid)
-        if isinstance(custom_token, bytes):
-            custom_token = custom_token.decode("utf-8")
-        return {"uid": uid, "custom_token": custom_token}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 @auth_router.get("/url")
 def get_auth_url(uid: str = Depends(get_current_uid)):

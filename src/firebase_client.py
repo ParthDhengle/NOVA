@@ -336,14 +336,14 @@ def log_audit(op_id: str, op_name: str, params: dict, result: str, reversible: b
     }
     return add_document("audit_logs", data)
 # Snapshots
-def create_snapshot(paths: list, retention_days: int = 30) -> str:
+def create_snapshot(uid: str, paths: list, retention_days: int = 30) -> str:
     """Create snapshot: Copy files to knowledge/storage/snapshots/{USER_ID}/{snap_id}/."""
     snap_id = add_document("snapshots", {
         "paths": paths, "created_at": datetime.now().isoformat(),
         "retention_days": retention_days, "object_store_uri": f"snapshots/{USER_ID}/{snap_id}"
     })
     for i, p in enumerate(paths):
-        upload_file(p, f"snapshots/{snap_id}/{i}_{os.path.basename(p)}")
+        upload_file(uid, p, f"snapshots/{snap_id}/{i}_{os.path.basename(p)}")
     return snap_id
 def list_snapshots() -> list:
     """List snapshots."""
@@ -432,6 +432,43 @@ async def save_chat_message(session_id: str, uid: str, role: str, content: str, 
 
    
     return session_id # Return session_id (new or existing)
+
+def set_initial_profile(uid: str, email: str, display_name: str = None) -> str:
+    """Create initial profile with minimal data - will be completed via profile setup."""
+    set_user_id(uid)
+    data = {
+        "uid": uid, 
+        "email": email, 
+        "Name": display_name, 
+        "display_name": display_name,
+        "timezone": "UTC", 
+        "focus_hours": [],
+        "permissions": {}, 
+        "integrations": {},
+        "profile_completed": False,  # Track if profile setup is complete
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat()
+    }
+    return add_document("users", data, uid, subcollection=False)
+
+def complete_user_profile(uid: str, profile_data: dict) -> bool:
+    """Complete user profile with personalization data."""
+    try:
+        profile_data['profile_completed'] = True
+        profile_data['updated_at'] = datetime.now().isoformat()
+        success = update_document("users", uid, profile_data, subcollection=False)
+        if success:
+            print(f"Profile completed for user {uid}")
+        return success
+    except Exception as e:
+        print(f"Error completing profile: {e}")
+        return False
+
+def is_profile_complete(uid: str) -> bool:
+    """Check if user has completed their profile setup."""
+    profile = get_user_profile(uid)
+    return profile.get('profile_completed', False)
+
 
 def add_kb_entry(title: str, content_md: str, tags: list = None, references: list = None) -> str:
     """Add KB entry (facts/notes)."""

@@ -111,7 +111,11 @@ class ApiClient {
 
   // Auth endpoints
   async login(email: string, password: string) {
-    const response = await this.request<{ uid: string; custom_token: string }>('/auth/login', {
+    const response = await this.request<{ 
+      uid: string; 
+      custom_token: string; 
+      profile_complete: boolean; // ADD THIS LINE
+    }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -121,7 +125,11 @@ class ApiClient {
   }
 
   async signup(email: string, password: string) {
-    const response = await this.request<{ uid: string; custom_token: string }>('/auth/signup', {
+    const response = await this.request<{ 
+      uid: string; 
+      custom_token: string; 
+      profile_complete: boolean; // ADD THIS LINE
+    }>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -167,7 +175,13 @@ class ApiClient {
   async getTasks() {
     return this.request<SchedulerTask[]>('/api/tasks');
   }
-
+  async completeProfile(profileData: any) {
+    const response = await this.request<{ success: boolean; profile_complete: boolean }>('/profile/complete', {
+      method: 'POST',
+      body: JSON.stringify(profileData),
+    });
+    return response;
+  }
   async createTask(task: Omit<SchedulerTask, 'id' | 'createdAt' | 'updatedAt'>) {
     const response = await this.request<{ task_id: string }>('/tasks', {
       method: 'POST',

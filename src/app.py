@@ -19,7 +19,7 @@ from firebase_client import get_current_uid, db, get_user_profile, update_user_p
 from firebase_client import save_chat_message, get_chat_history    
 from operations_store import queue_operation_local, update_operation_local
 from typing import List
-
+from firebase_client import complete_user_profile
 # Initialize Firebase
 initialize_firebase()
 
@@ -154,10 +154,24 @@ async def update_op_status(op_id: str, status: str, uid: str = Depends(get_curre
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/profile/complete")
+async def complete_profile(profile_data: dict, uid: str = Depends(get_current_uid)):
+    try:
+        success = complete_user_profile(uid, profile_data)
+        if not success:
+            raise HTTPException(status_code=500, detail="Profile completion failed")
+        return {"success": True, "profile_complete": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/profile")
 async def get_profile(uid: str = Depends(get_current_uid)):
-    # Return the authenticated user's profile
-    return get_user_profile(uid)
+    profile = get_user_profile(uid)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    profile['profile_complete'] = profile.get('profile_completed', False)
+    return profile
 
 @app.put("/profile")
 async def update_profile(updates: dict, uid: str = Depends(get_current_uid)):
