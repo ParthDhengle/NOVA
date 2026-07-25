@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius: var(--radius);
+}
+
+:root{
+  --nova-bg:225 10% 5%;
+  --nova-cyan:200 40% 50%;
+  --nova-accent:200 40% 30%;
+  --nova-text:0 0% 90%;
+  --nova-muted:200 15% 18%;
+  --nova-surface:225 10% 8%;
+  --nova-border:200 15% 25%;
+  --background:var(--nova-bg);
+  --foreground:var(--nova-text);
+  --card:var(--nova-surface);
+  --card-foreground:var(--nova-text);
+  --popover:var(--nova-surface);
+  --popover-foreground:var(--nova-text);
+  --primary:var(--nova-cyan);
+  --primary-foreground:var(--nova-bg);
+  --secondary:var(--nova-muted);
+  --secondary-foreground:var(--nova-text);
+  --muted:var(--nova-muted);
+  --muted-foreground:200 10% 60%;
+  --accent:var(--nova-accent);
+  --accent-foreground:var(--nova-text);
+  --destructive:0 50% 50%;
+  --destructive-foreground:var(--nova-text);
+  --border:var(--nova-border);
+  --input:var(--nova-border);
+  --ring:var(--nova-cyan);
+  --radius:.75rem;
+  --shadow-glow:0 0 15px hsl(var(--nova-cyan)/.15);
+}
+
+*{box-sizing:border-box;border-color:hsl(var(--border));}
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+}
+body{
+  background:hsl(var(--background));
+  color:hsl(var(--foreground));
+  font-family:var(--font-sans),system-ui,sans-serif;
+}
+
+.glass-nova{
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+  @apply border border-white/5 bg-gradient-to-br from-white/[0.03] to-white/[0.01];
+}
+.glow-nova{box-shadow:0 0 10px hsl(var(--nova-cyan)/.15);}
+.glow-nova-strong{box-shadow:var(--shadow-glow);}
+
+.btn-nova{
+  @apply rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
+}
+.btn-nova-ghost{
+  @apply rounded-lg border border-primary/15 bg-transparent text-primary transition-all duration-300 hover:bg-primary/5;
+}
+.card-nova{
+  @apply rounded-lg p-6 border border-border bg-card;
+}
+.input-nova{
+  @apply rounded-lg border border-input bg-background/50 px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary;
+}
+.sidebar-nova{
+  @apply border-r border-border bg-gradient-to-b from-background to-muted/15;
+}
+
+.titlebar{
+  -webkit-app-region:drag;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  height:32px;
+  padding:0 8px;
+}
+.titlebar-controls{display:flex;gap:4px;}
+.titlebar-controls button{
+  -webkit-app-region:no-drag;
+  width:46px;
+  height:32px;
+  border:none;
+  background:transparent;
+  color:hsl(var(--foreground));
+}
+.titlebar-controls button:hover{
+  background:hsl(var(--muted));
+  border-radius:4px;
+}
+
+[data-mini]{
+  --background:transparent;
+}
+[data-mini] html,
+[data-mini] body{
+  background:transparent!important;
+  overflow:hidden!important;
+}
+[data-mini] .glass-nova{
+  -webkit-backdrop-filter:blur(20px);
+  backdrop-filter:blur(20px);
+  background:transparent!important;
+}
+
+.animate-nova-fade-in{animation:nova-fade-in .3s ease-out forwards;}
+.animate-nova-scale-in{animation:nova-scale-in .2s ease-out forwards;}
+.animate-nova-slide-up{animation:nova-slide-up .4s ease-out forwards;}
+
+@keyframes nova-fade-in{
+from{opacity:0;transform:translateY(10px);}
+to{opacity:1;transform:translateY(0);}
+}
+@keyframes nova-scale-in{
+from{opacity:0;transform:scale(.95);}
+to{opacity:1;transform:scale(1);}
+}
+@keyframes nova-slide-up{
+from{opacity:0;transform:translateY(20px);}
+to{opacity:1;transform:translateY(0);}
+}
+@keyframes nova-pulse-glow{
+0%,100%{box-shadow:0 0 10px hsl(var(--nova-cyan)/.15);}
+50%{box-shadow:0 0 15px hsl(var(--nova-cyan)/.25);}
+}
