@@ -1,0 +1,5 @@
+venv
+.env
+src_old/
+__init__
+__pycache__
