@@ -1,8 +1,10 @@
 from pydantic_settings import BaseSettings,SettingsConfigDict
 
-class Config(BaseSettings):
+class Settings(BaseSettings):
+
     model_config=SettingsConfigDict(env_file='.env',extra='ignore')
 
+    DB_URL:str
     GEMINI_API_KEY:str
 
-config=Config()
+settings=Settings()

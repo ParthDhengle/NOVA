@@ -1,5 +1,5 @@
-from src2.services.chat_service import process_query
-from src2.schema.chat_schema import QuerySchema
+from src.services.chat_service import process_query
+from src.schema.chat_schema import QuerySchema
 from fastapi import APIRouter
 
 chat=APIRouter(prefix="/chat")

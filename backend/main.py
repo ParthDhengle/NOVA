@@ -1,7 +1,24 @@
-from fastapi import FastAPI
-from src2.routers.chat_router import chat
+from contextlib import asynccontextmanager
 
-app=FastAPI(title="NOVA Backend")
+from fastapi import FastAPI
+from src.routers.chat_router import chat
+from src.utils.database import db
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    # Startup
+    db.connect()
+    db.setup()
+
+    app.state.graph = build_graph()
+
+    yield
+
+    # Shutdown
+    db.close()
+
+app=FastAPI(title="NOVA Backend",lifespan=lifespan,)
 
 
 app.include_router(chat)

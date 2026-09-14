@@ -1,0 +1,15 @@
+fastapi[standard]
+pydantic
+langgraph
+langchain
+langchain_core
+langchain-google-genai
+langchain-groq
+IPython
+langgraph-checkpoint-postgres
+sqlalchemy
+psycopg[binary,pool]
+numpy
+pandas
+langgraph-supervisor
+langchain_community
