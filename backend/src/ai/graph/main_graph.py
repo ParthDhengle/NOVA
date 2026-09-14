@@ -30,9 +30,3 @@ builder.add_edge("supervisor","response",)
 builder.add_conditional_edges("response",have_ltm,{True:"store_ltm",False:"manage_stm"})
 builder.add_edge("store_ltm","manage_stm",)
 builder.add_edge("manage_stm",END)
-
-
-graph = builder.compile(
-    checkpointer=db.checkpointer,
-    store=db.store,
-)

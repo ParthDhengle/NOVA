@@ -1,10 +1,12 @@
 # agents/coder.py
 
-from langgraph.prebuilt import create_react_agent
-from src.ai.llm import groq_llm
+from langchain.agents import create_agent
+from src.ai.llm.chat import groq_llm
+from src.ai.agents.tools.web_search import web_search
 
-coder = create_react_agent(
+coder = create_agent(
+    tools=[web_search],
     model=groq_llm,
-    name="coder",
-    prompt="You are a coding agent. Solve programming tasks.",
+    name="coder_agent",
+    system_prompt="You are a coding agent. Solve programming tasks.",
 )

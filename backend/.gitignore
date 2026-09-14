@@ -4,3 +4,6 @@ src_old/
 __init__
 __pycache__
 /src_old
+
+py_to_md.py
+FASTAPI_PROJECT_SOURCE.md

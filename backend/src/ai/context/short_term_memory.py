@@ -7,7 +7,7 @@ import os
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.messages import HumanMessage,RemoveMessage
 
-def manage_short_term_memory(state:NOVAState):
+async def manage_short_term_memory(state:NOVAState):
     messages=state.get("messages",[])
     summary=state.get("summary","")
 
@@ -23,7 +23,7 @@ def manage_short_term_memory(state:NOVAState):
 
     summary_prompt=SummaryPrompt.format(summary=summary,old_messages=old_message)
 
-    response=groq_llm.invoke([
+    response=await groq_llm.ainvoke([
         HumanMessage(content=summary_prompt)
     ])
 

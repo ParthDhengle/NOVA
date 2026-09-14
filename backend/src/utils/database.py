@@ -1,7 +1,8 @@
 #postgres initialzation
-from langgraph.checkpoint.postgres import PostgresSaver
-from langgraph.store.postgres import PostgresStore
-from psycopg_pool import ConnectionPool
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.store.postgres.aio import AsyncPostgresStore
+from psycopg_pool import AsyncConnectionPool
+
 from src.utils.config import settings
 
 class Database:
@@ -11,28 +12,26 @@ class Database:
         self.checkpointer = None
         self.store = None
 
-    def connect(self):
+    async def connect(self):
 
-        self.pool = ConnectionPool(
+        self.pool = AsyncConnectionPool(
             conninfo=settings.DB_URL,
             min_size=1,
             max_size=10,
             open=False,
         )
 
-        self.pool.open(wait=True)
+        await self.pool.open(wait=True)
 
-        self.checkpointer = PostgresSaver(self.pool)
-        self.store = PostgresStore(self.pool)
+        self.checkpointer = AsyncPostgresSaver(self.pool)
+        self.store = AsyncPostgresStore(self.pool)
 
-    def setup(self):
+    async def setup(self):
+        await self.checkpointer.setup()
+        await self.store.setup()
 
-        self.checkpointer.setup()
-        self.store.setup()
-
-    def close(self):
-
+    async def close(self):
         if self.pool:
-            self.pool.close()
+            await self.pool.close()
 
 db = Database()

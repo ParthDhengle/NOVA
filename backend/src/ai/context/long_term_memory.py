@@ -1,9 +1,11 @@
 from src.ai.schema.states import NOVAState
+from langgraph.config import get_store
 
-def load_user_memory(state, config, *, store):
+async def load_user_memory(state, config):
+    store=get_store()
     user_id = config["configurable"]["user_id"]
 
-    memories = store.search(
+    memories =await store.asearch(
         ("users", user_id),
         query=state["user_query"],
         limit=5,
@@ -15,13 +17,13 @@ def load_user_memory(state, config, *, store):
         ]
     }
 
-def save_long_term_memory(state: NOVAState, config, *, store):
+async def save_long_term_memory(state: NOVAState, config):
     user_id = config["configurable"]["user_id"]
     new_memories = state.get("long_term_memory", [])
-
+    store=get_store()
     for memory in new_memories:
         memory_key = memory["key"]
-        store.put(
+        await store.aput(
             namespace=("users", user_id),
             key=memory_key,
             value=memory,
