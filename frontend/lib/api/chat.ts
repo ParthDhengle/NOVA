@@ -1,50 +1,35 @@
-import { apiClient } from "./client";
-import type { ChatMessage, ChatSession } from "@/lib/types/chat";
+import { apiRequest, jsonBody } from './client'
+import type { Chat, ChatDetail } from './types'
 
-interface BackendResponse {
-  result: {
-    display_response: string;
-    mode: string;
-  };
-  session_id: string;
+export type SendMessageRequest = {
+  message: string
+  chat_id?: string
+  project_id?: string
+  agent_id?: string
+  model_id?: string
+  mode: 'Chat' | 'Research'
+  tool_ids: string[]
+  connector_ids: string[]
+  file_ids: string[]
+}
+
+export type StartRunResponse = {
+  chat_id: string
+  run_id: string
 }
 
 export const chatApi = {
-  async sendMessage(query: string, sessionId?: string) {
-    return apiClient.post<BackendResponse>("/process_query", {
-      query,
-      session_id: sessionId,
-    });
-  },
-
-  async getChatHistory(sessionId?: string) {
-    const params = sessionId ? `?session_id=${sessionId}` : "";
-
-    return apiClient.get<ChatMessage[]>(`/chat_history${params}`);
-  },
-
-  async getChatSessions() {
-    return apiClient.get<ChatSession[]>("/chat_sessions");
-  },
-
-  async getChatSession(sessionId: string) {
-    const sessions = await this.getChatSessions();
-
-    const session = sessions.find((s) => s.id === sessionId);
-
-    if (!session) {
-      throw new Error("Session not found");
-    }
-
-    const history = await this.getChatHistory(sessionId);
-
-    return {
-      ...session,
-      messages: history,
-    };
-  },
-
-  async deleteChatSession(sessionId: string) {
-    await apiClient.delete(`/chat_sessions/${sessionId}`);
-  },
-};
+  list: () => apiRequest<Chat[]>('/api/chats'),
+  get: (chatId: string) =>
+    apiRequest<ChatDetail>(`/api/chats/${encodeURIComponent(chatId)}`),
+  send: (request: SendMessageRequest) =>
+    apiRequest<StartRunResponse>('/api/chat', {
+      method: 'POST',
+      body: jsonBody(request),
+    }),
+  cancel: (chatId: string, runId: string) =>
+    apiRequest<void>(`/api/chat/${encodeURIComponent(chatId)}/cancel`, {
+      method: 'POST',
+      body: jsonBody({ run_id: runId }),
+    }),
+}

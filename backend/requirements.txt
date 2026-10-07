@@ -13,3 +13,16 @@ numpy
 pandas
 langgraph-supervisor
 langchain_community
+grandalf
+
+#RAG
+langchain_pymupdf4llm
+langchain_qdrant
+
+# google auth
+google-auth 
+google-auth-oauthlib 
+google-auth-httplib2
+pwdlib
+jwt
+asyncpg

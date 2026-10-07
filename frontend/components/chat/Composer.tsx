@@ -1,376 +1,356 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Send, 
-  Mic, 
-  MicOff, 
-  Paperclip, 
-  FileText,
-  Smile,
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import {
+  ArrowUp,
+  Bot,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Cpu,
+  FolderPlus,
+  Paperclip,
+  Pause,
+  Plug,
+  Plus,
+  Wrench,
   X,
-  Loader2
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { useNova } from '@/context/NovaContext';
-import { useVoiceTranscription } from '@/hooks/useElectronApi';
-import { chatService } from '@/lib/utils/chatServices';
-import type { ChatMessage } from '@/lib/types/chat';
+} from 'lucide-react'
 
-/**
- * Nova Composer - Text and voice input component
- * 
- * Features:
- * - Multi-line text input with markdown support
- * - Voice transcription (local Whisper)
- * - File attachments
- * - Role prefills and quick actions
- * - Streaming voice-to-text display
- * - Auto-resize textarea
- * - Keyboard shortcuts (Ctrl+Enter to send)
- * - Real-time character count
- */
+export type Option = { id: string; name: string; description?: string }
+export type ToolOption = Option & { enabled?: boolean }
+export type ConnectorOption = { id: string; name: string; connected: boolean; enabled: boolean }
 
-interface ComposerProps {
-  className?: string;
-  placeholder?: string;
-  maxLength?: number;
+type Props = {
+  input: string
+  setInput: (v: string) => void
+  streaming: boolean
+  onSend: () => void
+  onStop: () => void
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+
+  // All of the following come from hooks -> services -> FastAPI (never hard-coded here)
+  tools: ToolOption[]
+  selectedToolIds: string[]
+  onToggleTool: (id: string) => void
+
+  agents: Option[]
+  agent: string
+  setAgent: (id: string) => void
+
+  models: Option[]
+  model: string
+  setModel: (id: string) => void
+
+  connectors: ConnectorOption[]
+  onToggleConnector: (id: string) => void
+
+  projects: Option[]
+  onAddToProject: (projectId: string) => void
+  disabled?: boolean
+  enterToSend: boolean
 }
 
-export default function Composer({ 
-  className = '',
-  placeholder = 'Message Nova...',
-  maxLength = 4000 
-}: ComposerProps) {
-  const { state, dispatch } = useNova();
-  const [message, setMessage] = useState('');
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [showRolePrefills, setShowRolePrefills] = useState(false);
-  
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const {
-    isRecording,
-    transcript,
-    isPartial,
-    startRecording,
-    stopRecording,
-  } = useVoiceTranscription();
+type View = 'root' | 'agent' | 'model' | 'connectors' | 'project'
 
-  // Update message when transcript changes
+export function Composer(p: Props) {
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState<View>('root')
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
+
+  const close = () => {
+    setOpen(false)
+    setView('root')
+  }
+
+  // Close on outside click / Escape
   useEffect(() => {
-    if (transcript && !isPartial) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMessage(prev => prev + (prev ? ' ' : '') + transcript);
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) close()
     }
-  }, [transcript, isPartial]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  // Ctrl/Cmd + U -> file picker
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
-    }
-  }, [message]);
-
-  // Role-based message prefills
-  const rolePrefills = {
-    friend: [
-      "Hey Nova, I need some advice about...",
-      "Can you help me think through...",
-      "What do you think about...",
-    ],
-    mentor: [
-      "I'm looking for guidance on...",
-      "Can you help me develop a plan for...",
-      "What steps should I take to...",
-    ],
-    girlfriend: [
-      "I've been thinking about us and...",
-      "How was your day? I want to tell you about...",
-      "I love talking to you about...",
-    ],
-    husband: [
-      "Let's plan something special...",
-      "I need your support with...",
-      "Can we discuss our goals for...",
-    ],
-    guide: [
-      "Please analyze and provide recommendations for...",
-      "I need a structured approach to...",
-      "Create a comprehensive plan for...",
-    ],
-  };
-
-  // Handle message sending
-  const handleSend = async () => {
-    if (!message.trim() && attachments.length === 0) return;
-    
-    const messageContent = message.trim();
-    
-    // Clear input immediately
-    setMessage('');
-    setAttachments([]);
-    
-    try {
-      // Send message through chat service
-      await chatService.sendMessage(messageContent, state.currentSession?.id);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      // Show error message to user
-      const errorMessage: ChatMessage = {
-        id: `error-${Date.now()}`,
-        content: 'Sorry, I encountered an error processing your message. Please try again.',
-        role: 'system',
-        timestamp: Date.now(),
-      };
-      
-      if (state.currentSession) {
-        dispatch({ 
-          type: 'ADD_MESSAGE', 
-          payload: { sessionId: state.currentSession.id, message: errorMessage }
-        });
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+        e.preventDefault()
+        fileRef.current?.click()
       }
     }
-  };
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
-  // Handle file attachments
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setAttachments(prev => [...prev, ...files].slice(0, 5)); // Max 5 files
-  };
+  // Auto-grow textarea
+  useEffect(() => {
+    const el = textRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 240)}px`
+  }, [p.input])
 
-  // Remove attachment
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Handle keyboard shortcuts
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    // Ctrl/Cmd + Enter to send
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      event.preventDefault();
-      handleSend();
-    }
-    
-    // Escape to clear
-    if (event.key === 'Escape') {
-      setMessage('');
-      setAttachments([]);
-    }
-  };
-
-  // Handle voice recording toggle
-  const handleVoiceToggle = () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  };
+  const isResearch = p.selectedToolIds.includes('deep_research')
+  const activeTools = p.tools.filter((t) => p.selectedToolIds.includes(t.id))
+  const agentName = p.agents.find((a) => a.id === p.agent)?.name
+  const modelName = p.models.find((m) => m.id === p.model)?.name
 
   return (
-    <div className={`p-4 bg-background/80 backdrop-blur-sm ${className}`}>
-      <div className="max-w-4xl mx-auto">
-        {/* Voice Transcript Display */}
-        <AnimatePresence>
-          {isRecording && transcript && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-3 glass-nova rounded-lg border border-primary/30"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-primary">Recording</span>
-                <Badge variant="outline" className="text-xs">
-                  {isPartial ? 'Partial' : 'Complete'}
-                </Badge>
-              </div>
-              <div className="text-sm">
-                {transcript || 'Listening...'}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Attachments */}
-        <AnimatePresence>
-          {attachments.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4"
-            >
-              <div className="flex flex-wrap gap-2">
-                {attachments.map((file, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 text-sm"
-                  >
-                    <FileText size={14} />
-                    <span className="truncate max-w-32">{file.name}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeAttachment(index)}
-                      className="w-4 h-4 p-0 hover:bg-destructive/20"
-                    >
-                      <X size={10} />
-                    </Button>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Main Input Area */}
-        <div className="glass-nova rounded-2xl border border-border/50 focus-within:border-primary/50 transition-colors">
-          {/* Role Prefills */}
-          <AnimatePresence>
-            {showRolePrefills && (
-              <motion.div
-                initial={{ height: 0 }}
-                animate={{ height: 'auto' }}
-                exit={{ height: 0 }}
-                className="border-b border-border/30 overflow-hidden"
+    <div className="composer">
+      {(activeTools.length > 0 || agentName || modelName) && (
+        <div className="composer-chips" aria-label="Active selections">
+          {agentName && <span className="chip mono">{agentName}</span>}
+          {modelName && <span className="chip mono">{modelName}</span>}
+          {activeTools.map((t) => (
+            <span key={t.id} className="chip accent">
+              {t.name}
+              <button
+                aria-label={`Disable ${t.name}`}
+                onClick={() => p.onToggleTool(t.id)}
               >
-                <div className="p-3">
-                  <div className="text-xs text-muted-foreground mb-2">
-                    Quick {state.role} prompts:
-                  </div>
-                  <div className="space-y-1">
-                    {rolePrefills[state.role].map((prefill, index) => (
-                      <Button
-                        key={index}
-                        size="sm"
-                        variant="ghost"
-                        className="text-xs h-6 justify-start font-normal text-left"
-                        onClick={() => {
-                          setMessage(prefill);
-                          setShowRolePrefills(false);
-                          textareaRef.current?.focus();
-                        }}
-                      >
-                        {prefill}
-                      </Button>
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <textarea
+        disabled={p.disabled}
+        ref={textRef}
+        rows={1}
+        value={p.input}
+        onChange={(e) => p.setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (
+            e.key === 'Enter' &&
+            p.enterToSend &&
+            !e.shiftKey &&
+            !e.nativeEvent.isComposing &&
+            e.keyCode !== 229
+          ) {
+            e.preventDefault()
+            if (!p.streaming && !p.disabled) p.onSend()
+          }
+        }}
+        placeholder={isResearch ? 'Ask a research question...' : 'Message NOVA...'}
+      />
+
+      <div className="composer-row">
+        <div className="menu-wrap" ref={wrapRef}>
+          <button
+            className="icon-button"
+            aria-label="Add and tools"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            disabled={p.disabled}
+            onClick={() => (open ? close() : setOpen(true))}
+          >
+            <Plus />
+          </button>
+
+          {open && (
+            <div className="plus-menu" role="menu">
+              {view === 'root' && (
+                <>
+                  <MenuItem
+                    icon={<Paperclip />}
+                    label="Add files or photos"
+                    hint="Ctrl+U"
+                    onClick={() => {
+                      fileRef.current?.click()
+                      close()
+                    }}
+                  />
+                  {p.projects.length > 0 && (
+                    <MenuItem
+                      icon={<FolderPlus />}
+                      label="Add to project"
+                      chevron
+                      onClick={() => setView('project')}
+                    />
+                  )}
+
+                  <Divider />
+
+                  <MenuItem
+                    icon={<Bot />}
+                    label="Agent"
+                    hint={agentName}
+                    chevron
+                    onClick={() => setView('agent')}
+                  />
+                  <MenuItem
+                    icon={<Cpu />}
+                    label="Model"
+                    hint={modelName}
+                    chevron
+                    onClick={() => setView('model')}
+                  />
+                  <MenuItem
+                    icon={<Plug />}
+                    label="Connectors"
+                    chevron
+                    onClick={() => setView('connectors')}
+                  />
+
+                  {p.tools.length > 0 && <Divider />}
+
+                  <div className="menu-scroll">
+                    {p.tools.map((t) => (
+                      <MenuItem
+                        key={t.id}
+                        icon={<Wrench />}
+                        label={t.name}
+                        title={t.description}
+                        disabled={t.enabled === false}
+                        checked={p.selectedToolIds.includes(t.id)}
+                        onClick={() => p.onToggleTool(t.id)}
+                      />
                     ))}
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </>
+              )}
 
-          {/* Textarea */}
-          <div className="relative">
-            <Textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              className="min-h-[60px] max-h-[150px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base leading-relaxed px-4 py-3"
-              maxLength={maxLength}
-            />
+              {view === 'agent' && (
+                <SubView title="Agent" onBack={() => setView('root')}>
+                  {p.agents.map((a) => (
+                    <MenuItem
+                      key={a.id}
+                      label={a.name}
+                      title={a.description}
+                      checked={p.agent === a.id}
+                      onClick={() => {
+                        p.setAgent(a.id)
+                        close()
+                      }}
+                    />
+                  ))}
+                </SubView>
+              )}
 
-            {/* Character Count */}
-            {message.length > maxLength * 0.8 && (
-              <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-                {message.length}/{maxLength}
-              </div>
-            )}
-          </div>
+              {view === 'model' && (
+                <SubView title="Model" onBack={() => setView('root')}>
+                  {p.models.map((m) => (
+                    <MenuItem
+                      key={m.id}
+                      label={m.name}
+                      title={m.description}
+                      checked={p.model === m.id}
+                      onClick={() => {
+                        p.setModel(m.id)
+                        close()
+                      }}
+                    />
+                  ))}
+                </SubView>
+              )}
 
-          {/* Controls */}
-          <div className="flex items-center justify-between p-3 border-t border-border/30">
-            <div className="flex items-center gap-1">
-              {/* Attachments */}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-8 h-8 p-0"
-                aria-label="Attach file"
-              >
-                <Paperclip size={16} />
-              </Button>
+              {view === 'connectors' && (
+                <SubView title="Connectors" onBack={() => setView('root')}>
+                  {p.connectors.map((c) => (
+                    <MenuItem
+                      key={c.id}
+                      label={c.name}
+                      hint={c.connected ? undefined : 'Not connected'}
+                      disabled={!c.connected}
+                      checked={c.connected && c.enabled}
+                      onClick={() => p.onToggleConnector(c.id)}
+                    />
+                  ))}
+                  <Divider />
+                  <Link href="/connectors" className="menu-item" onClick={close}>
+                    <span className="menu-label">Manage connectors</span>
+                  </Link>
+                </SubView>
+              )}
 
-              {/* Role Prefills Toggle */}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowRolePrefills(!showRolePrefills)}
-                className="w-8 h-8 p-0"
-                aria-label="Show role prefills"
-              >
-                <Smile size={16} />
-              </Button>
-
-              {/* Voice Recording */}
-              {state.voiceEnabled && (
-                <Button
-                  size="sm"
-                  variant={isRecording ? 'destructive' : 'ghost'}
-                  onClick={handleVoiceToggle}
-                  className={`w-8 h-8 p-0 ${isRecording ? 'animate-pulse' : ''}`}
-                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-                >
-                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
-                </Button>
+              {view === 'project' && (
+                <SubView title="Add to project" onBack={() => setView('root')}>
+                  {p.projects.map((pr) => (
+                    <MenuItem
+                      key={pr.id}
+                      label={pr.name}
+                      onClick={() => {
+                        p.onAddToProject(pr.id)
+                        close()
+                      }}
+                    />
+                  ))}
+                </SubView>
               )}
             </div>
+          )}
 
-            {/* Send Button */}
-            <Button
-              onClick={handleSend}
-              disabled={!message.trim() && attachments.length === 0}
-              className="btn-nova gap-2"
-              size="sm"
-            >
-              {state.isTyping ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Sending...</span>
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  <span>Send</span>
-                </>
-              )}
-            </Button>
-          </div>
+          <input ref={fileRef} type="file" multiple hidden onChange={p.onUpload} />
         </div>
 
-        {/* Quick Tips */}
-        <div className="flex items-center justify-center mt-3 text-xs text-muted-foreground gap-4">
-          <span>Ctrl+Enter to send</span>
-          <span>•</span>
-          <span>Escape to clear</span>
-          <span>•</span>
-          <span className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
-            Local voice processing
-          </span>
-        </div>
-
-        {/* Hidden File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={handleFileSelect}
-          accept=".txt,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
-        />
+        <button
+          className="send"
+          disabled={p.disabled}
+          onClick={p.streaming ? p.onStop : p.onSend}
+          aria-label={p.streaming ? 'Stop generation' : 'Send message'}
+        >
+          {p.streaming ? <Pause /> : <ArrowUp />}
+        </button>
       </div>
     </div>
-  );
+  )
 }
+
+/* ---------- small internal pieces ---------- */
+
+function MenuItem(props: {
+  label: string
+  icon?: React.ReactNode
+  hint?: string
+  title?: string
+  chevron?: boolean
+  checked?: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      role="menuitem"
+      className="menu-item"
+      title={props.title}
+      disabled={props.disabled}
+      onClick={props.onClick}
+    >
+      {props.icon && <span className="menu-icon">{props.icon}</span>}
+      <span className="menu-label">{props.label}</span>
+      {props.hint && <span className="menu-hint">{props.hint}</span>}
+      {props.chevron && <ChevronRight className="menu-trail" />}
+      {props.checked && <Check className="menu-check" />}
+    </button>
+  )
+}
+
+function SubView(props: { title: string; onBack: () => void; children: React.ReactNode }) {
+  return (
+    <>
+      <button className="menu-item menu-back" onClick={props.onBack}>
+        <ChevronLeft className="menu-icon" />
+        <span className="menu-label">{props.title}</span>
+      </button>
+      <Divider />
+      <div className="menu-scroll">{props.children}</div>
+    </>
+  )
+}
+
+const Divider = () => <div className="menu-divider" role="separator" />

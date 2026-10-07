@@ -1,304 +1,162 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  MessageSquare, 
-  Plus, 
-  Search, 
-  Calendar,
-  BarChart3,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-  MoreVertical
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useNova } from '@/context/NovaContext';
-import type { ChatSession } from '@/lib/types/chat';
-import { chatService } from '@/lib/utils/chatServices';
+'use client'
 
-interface SidebarProps {
-  className?: string;
+import { useCallback, useEffect, useState } from 'react'
+import {
+  ChevronRight,
+  FolderKanban,
+  Link2,
+  LogOut,
+  Pin,
+  Plus,
+  Search,
+  Settings2,
+} from 'lucide-react'
+import { ApiError } from '@/lib/api/client'
+import { chatApi } from '@/lib/api/chat'
+import type { Chat, User } from '@/lib/api/types'
+import type { Route } from '@/lib/types/route'
+
+type Props = {
+  route: Route
+  navigate: (r: Route) => void
+  activeChatId: string | null
+  historyRefreshKey: number
+  onSelectChat: (id: string) => void
+  user: User | null
+  onSignOut: () => void
+  onNew: () => void
+  onSearch: () => void
 }
 
-export default function Sidebar({ className = '' }: SidebarProps) {
-  const { state, dispatch } = useNova();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredSessions, setFilteredSessions] = useState(state.sessions);
+const NAV: [Route, string, React.ElementType][] = [
+  ['projects', 'Projects', FolderKanban],
+  ['connectors', 'MCP / Connectors', Link2],
+]
+const GROUPS = ['Today', 'Yesterday', 'Previous 7 days', 'Earlier']
 
-  // Handle search
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setFilteredSessions(state.sessions);
-      return;
-    }
+function groupFor(chat: Chat): string {
+  const date = new Date(chat.updated_at)
+  if (Number.isNaN(date.getTime())) return 'Earlier'
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const daysAgo = Math.floor((today.getTime() - day.getTime()) / 86_400_000)
+  if (daysAgo <= 0) return 'Today'
+  if (daysAgo === 1) return 'Yesterday'
+  if (daysAgo < 7) return 'Previous 7 days'
+  return 'Earlier'
+}
 
-    const filtered = state.sessions.filter(session =>
-      session.title.toLowerCase().includes(query.toLowerCase()) ||
-      session.summary?.toLowerCase().includes(query.toLowerCase()) ||
-      session.messages.some(msg => 
-        msg.content.toLowerCase().includes(query.toLowerCase())
-      )
-    );
-    setFilteredSessions(filtered);
-  };
+export function Sidebar({
+  route,
+  navigate,
+  activeChatId,
+  historyRefreshKey,
+  onSelectChat,
+  user,
+  onSignOut,
+  onNew,
+  onSearch,
+}: Props) {
+  const [chats, setChats] = useState<Chat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const reload = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    chatApi.list()
+      .then(setChats)
+      .catch((cause: unknown) => {
+        setError(cause instanceof ApiError ? cause.message : 'Unable to load chat history.')
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
-  // Handle new chat
-  const handleNewChat = () => {
-    // TODO: IMPLEMENT IN PRELOAD - window.api.createNewChat()
-    const newSession: ChatSession = {
-      id: `session-${Date.now()}`,
-      title: 'New Chat',
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    dispatch({ type: 'SET_SESSIONS', payload: [newSession, ...state.sessions] });
-    dispatch({ type: 'SET_CURRENT_SESSION', payload: newSession });
-  };
-
-  // Handle session selection
-const handleSessionSelect = async (session: ChatSession) => {
-  const history = await chatService.getChatHistory(session.id);
-  dispatch({ type: 'SET_CURRENT_SESSION', payload: { ...session, messages: history } });
-};
-
-  // Handle session deletion
-  const handleDeleteSession = (sessionId: string) => {
-    // TODO: IMPLEMENT IN PRELOAD - window.api.deleteChatSession(sessionId)
-    const updatedSessions = state.sessions.filter(s => s.id !== sessionId);
-    dispatch({ type: 'SET_SESSIONS', payload: updatedSessions });
-    
-    if (state.currentSession?.id === sessionId) {
-      dispatch({ type: 'SET_CURRENT_SESSION', payload: updatedSessions[0] || null });
-    }
-  };
-
-  // Handle view switching
-  const handleViewChange = (view: typeof state.view) => {
-    dispatch({ type: 'SET_VIEW', payload: view });
-  };
-
-  // Toggle sidebar collapse
-  const toggleCollapsed = () => {
-    dispatch({ type: 'SET_SIDEBAR_COLLAPSED', payload: !state.sidebarCollapsed });
-  };
+  useEffect(() => {
+    reload()
+  }, [reload, historyRefreshKey, retryCount])
 
   return (
-    <motion.div 
-      className={`sidebar-nova h-full flex flex-col ${className}`}
-      animate={{ width: state.sidebarCollapsed ? 60 : 300 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-    >
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          {!state.sidebarCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm">
-                N
-              </div>
-              <span className="font-semibold text-lg">Nova</span>
-            </div>
-          )}
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={toggleCollapsed}
-            className="w-8 h-8 p-0 rounded-lg"
-            aria-label={state.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {state.sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </Button>
-        </div>
-
-        {/* Navigation Buttons */}
-        {!state.sidebarCollapsed && (
-          <div className="flex gap-1 mt-4">
-            <Button
-              size="sm"
-              variant={state.view === 'chat' ? 'default' : 'ghost'}
-              className="flex-1 btn-nova-ghost"
-              onClick={() => handleViewChange('chat')}
-            >
-              <MessageSquare size={14} className="mr-1" />
-              Chat
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="ghost"
-              className="p-2"
-              onClick={() => handleViewChange('scheduler')}
-              aria-label="Scheduler"
-            >
-              <Calendar size={14} />
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="ghost"
-              className="p-2"
-              onClick={() => handleViewChange('dashboard')}
-              aria-label="Dashboard"
-            >
-              <BarChart3 size={14} />
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="ghost"
-              className="p-2"
-              onClick={() => handleViewChange('settings')}
-              aria-label="Settings"
-            >
-              <Settings size={14} />
-            </Button>
-          </div>
-        )}
+    <aside className="sidebar">
+      <div className="brand">
+        <span className="brand-mark"><span /></span>
+        NOVA
       </div>
 
-      {/* New Chat & Search */}
-      {!state.sidebarCollapsed && (
-        <div className="p-4 space-y-3 border-b border-border">
-          <Button
-            onClick={handleNewChat}
-            className="w-full btn-nova gap-2"
-            size="sm"
+      <button className="new-chat" onClick={onNew}>
+        <Plus /> New chat
+      </button>
+
+      <div className="history">
+        <p className="eyebrow">Workspace</p>
+        {NAV.map(([id, label, Icon]) => (
+          <button
+            key={id}
+            className={`side-nav ${route === id ? 'active' : ''}`}
+            onClick={() => navigate(id)}
           >
-            <Plus size={16} />
-            New Chat
-          </Button>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={14} />
-            <Input
-              placeholder="Search chats..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-9 input-nova h-9"
-            />
-          </div>
+            <Icon />
+            <span>{label}</span>
+          </button>
+        ))}
+        <button className="search-button" onClick={onSearch}>
+          <Search /> Search
+        </button>
+        <div className="section-heading">
+          <span className="eyebrow">Chat history</span>
         </div>
-      )}
-
-      {/* Chat Sessions List */}
-      <ScrollArea className="flex-1">
-        <div className="p-2">
-          {state.sidebarCollapsed ? (
-            // Collapsed view - show only icons
-            <div className="space-y-2">
-              {state.sessions.slice(0, 8).map((session) => (
-                <Button
-                  key={session.id}
-                  size="sm"
-                  variant={state.currentSession?.id === session.id ? 'default' : 'ghost'}
-                  className="w-full h-10 p-0 rounded-lg justify-center"
-                  onClick={() => handleSessionSelect(session)}
-                  title={session.title}
+        {loading && <p className="history-state">Loading history…</p>}
+        {error && (
+          <div className="history-state" role="alert">
+            <span>{error}</span>
+            <button className="quiet" onClick={() => setRetryCount((count) => count + 1)}>
+              Retry
+            </button>
+          </div>
+        )}
+        {!loading && !error && chats.length === 0 && (
+          <p className="history-state">No conversations yet.</p>
+        )}
+        {!loading && !error && GROUPS.map((group) => {
+          const groupedChats = chats.filter((chat) => groupFor(chat) === group)
+          if (groupedChats.length === 0) return null
+          return (
+            <div key={group}>
+              <span className="history-group">{group}</span>
+              {groupedChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  className={`history-item ${activeChatId === chat.id ? 'active' : ''}`}
+                  onClick={() => onSelectChat(chat.id)}
                 >
-                  <MessageSquare size={16} />
-                </Button>
+                  <span>
+                    {chat.pinned && <Pin />}
+                    {chat.title}
+                  </span>
+                </button>
               ))}
             </div>
-          ) : (
-            // Expanded view - show full session info
-            <div className="space-y-1">
-              {(searchQuery ? filteredSessions : state.sessions).map((session) => (
-                <motion.div
-                  key={session.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={`group relative rounded-lg p-3 cursor-pointer transition-colors hover:bg-white/5 ${
-                    state.currentSession?.id === session.id 
-                      ? 'bg-primary/10 border border-primary/20' 
-                      : 'border border-transparent'
-                  }`}
-                  onClick={() => handleSessionSelect(session)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        {session.title}
-                      </div>
-                      
-                      {session.summary && (
-                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {session.summary}
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        <span>{session.messages.length} messages</span>
-                        <span>•</span>
-                        <span>{new Date(session.updatedAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
+          )
+        })}
+      </div>
 
-                    {/* Session Menu */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="w-6 h-6 p-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical size={12} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteSession(session.id);
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Chat
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-
-              {/* Empty State */}
-              {filteredSessions.length === 0 && searchQuery && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Search size={32} className="mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">No chats found</div>
-                  <div className="text-xs">Try a different search term</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Privacy Indicator */}
-      {!state.sidebarCollapsed && (
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
-            <span>Local processing active</span>
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
+      <div className="sidebar-bottom">
+        <button className="side-nav" onClick={() => navigate('settings')}>
+          <Settings2 /> Settings
+        </button>
+        <button className="account-button" onClick={() => navigate('personalization')}>
+          <span className="avatar">{user?.name?.slice(0, 2).toUpperCase() ?? 'U'}</span>
+          <span>
+            <b>{user?.username ?? user?.email}</b>
+            <small>{user?.email}</small>
+          </span>
+          <ChevronRight />
+        </button>
+        <button className="side-nav" onClick={onSignOut}>
+          <LogOut /> Sign out
+        </button>
+      </div>
+    </aside>
+  )
 }

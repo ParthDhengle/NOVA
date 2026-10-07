@@ -1,100 +1,89 @@
-import { getAuth } from "firebase/auth";
+import type { ApiErrorBody } from './types'
 
-export const API_BASE_URL = "http://127.0.0.1:8001";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
-class ApiClient {
-  constructor(private readonly baseURL: string) {}
+export class ApiError extends Error {
+  status: number
+  code?: string
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const auth = getAuth();
-
-    let idToken: string | undefined;
-
-    if (auth.currentUser) {
-      idToken = await auth.currentUser.getIdToken();
-    }
-
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(idToken && {
-          Authorization: `Bearer ${idToken}`,
-        }),
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        await auth.signOut();
-        throw new Error("Authentication failed. Please login again.");
-      }
-
-      const error = await response.json().catch(() => ({}));
-
-      throw new Error(
-        error.detail || `HTTP ${response.status}: ${response.statusText}`
-      );
-    }
-
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    return response.json();
-  }
-
-  get<T>(
-    url: string,
-    params?: Record<string, string | number | boolean>
-  ) {
-    let finalUrl = url;
-
-    if (params) {
-      const search = new URLSearchParams();
-
-      Object.entries(params).forEach(([key, value]) => {
-        search.append(key, String(value));
-      });
-
-      finalUrl += `?${search.toString()}`;
-    }
-
-    return this.request<T>(finalUrl, {
-      method: "GET",
-    });
-  }
-
-  post<T>(endpoint: string, body?: unknown) {
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  patch<T>(endpoint: string, body?: unknown) {
-    return this.request<T>(endpoint, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    });
-  }
-
-  put<T>(endpoint: string, body?: unknown) {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    });
-  }
-
-  delete<T>(endpoint: string) {
-    return this.request<T>(endpoint, {
-      method: "DELETE",
-    });
+  constructor(message: string, status: number, code?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL);
+export function apiUrl(path: string): string {
+  if (!API_BASE_URL) {
+    throw new Error('NEXT_PUBLIC_API_URL is not configured.')
+  }
+  return `${API_BASE_URL.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+async function throwApiError(response: Response): Promise<never> {
+  const body = (await response.json().catch(() => null)) as ApiErrorBody | null
+  const detail = body?.detail
+  const validationMessages = Array.isArray(detail)
+    ? detail.flatMap((issue) =>
+        typeof issue === 'object' && issue !== null && 'msg' in issue && typeof issue.msg === 'string'
+          ? [issue.msg]
+          : []
+      ).join('; ')
+    : ''
+  const message =
+    (typeof detail === 'string' ? detail : Array.isArray(detail) ? validationMessages : detail?.message) ??
+    body?.message ??
+    response.statusText ??
+    'The request failed.'
+  throw new ApiError(message, response.status, body?.code)
+}
+
+export async function apiResponse(
+  path: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const headers = new Headers(init.headers)
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  headers.set('Accept', headers.get('Accept') ?? 'application/json')
+  if (
+    typeof window !== 'undefined' &&
+    !path.startsWith('/api/auth/login') &&
+    !path.startsWith('/api/auth/register')
+  ) {
+    const token = localStorage.getItem('nova_token')
+
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+  const response = await fetch(apiUrl(path), {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+  if (
+    response.status === 401 &&
+    !path.startsWith('/api/auth/') &&
+    typeof window !== 'undefined'
+  ) {
+    window.dispatchEvent(new Event('nova:unauthorized'))
+  }
+  if (!response.ok) await throwApiError(response)
+  return response
+}
+
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  const response = await apiResponse(path, init)
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+export function jsonBody(value: unknown): string {
+  return JSON.stringify(value)
+}

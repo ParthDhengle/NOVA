@@ -1,9 +1,12 @@
 venv
 .env
-src_old/
+_old/
 __init__
 __pycache__
-/src_old
+/_old
 
 py_to_md.py
 FASTAPI_PROJECT_SOURCE.md
+
+langsmith-masterclass
+langvenv

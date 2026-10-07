@@ -1,25 +1,49 @@
-import "./globals.css";
-import type { Metadata } from "next";
-
-import AppProviders from "./AppProviders";
+import { Analytics } from '@vercel/analytics/next'
+import type { Metadata, Viewport } from 'next'
+import { AuthProvider } from '@/components/auth/AuthProvider'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: "Nova",
-    description: "Nova AI Assistant",
-    };
+  title: 'NOVA — Agentic workspace',
+  description: 'A calm, transparent workspace for agentic AI execution.',
+  icons: {
+    icon: [
+      {
+        url: '/icon-light-32x32.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/icon-dark-32x32.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+      {
+        url: '/icon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    apple: '/apple-icon.png',
+  },
+}
 
-    export default function RootLayout({
-      children,
-      }: {
-        children: React.ReactNode;
-        }) {
-          return (
-            <html lang="en">
-              <body>
-                <AppProviders>
-                  {children}
-                </AppProviders>
-              </body>
-            </html>
-          );
-        }
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="en">
+      <body className="antialiased">
+        <AuthProvider>{children}</AuthProvider>
+        {process.env.NODE_ENV === 'production' && <Analytics />}
+      </body>
+    </html>
+  )
+}

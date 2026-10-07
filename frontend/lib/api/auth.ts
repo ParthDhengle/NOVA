@@ -1,45 +1,44 @@
-import { signInWithCustomToken, getAuth } from "firebase/auth";
-import { apiClient } from "./client";
-import type { ProfileData } from "@/lib/types/profile";
-export interface AuthResponse {
-  uid: string;
-  custom_token: string;
-  profile_complete: boolean;
+import { apiRequest, jsonBody } from './client'
+import type { User } from './types'
+
+export type Credentials = { email: string; password: string }
+export type Registration = Credentials & { username: string }
+export type LoginResponse = {
+  token: string
 }
 
-
-
 export const authApi = {
-  async login(email: string, password: string) {
-    const response = await apiClient.post<AuthResponse>("/auth/login", {
-      email,
-      password,
-    });
+  login: async (credentials: Credentials) => {
+    const response = await apiRequest<LoginResponse>(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        body: jsonBody(credentials),
+      }
+    )
 
-    await signInWithCustomToken(getAuth(), response.custom_token);
+    localStorage.setItem('nova_token', response.token)
 
-    return response;
+    return apiRequest<User>('/api/auth/is_auth')
   },
 
-  async signup(email: string, password: string) {
-    const response = await apiClient.post<AuthResponse>("/auth/signup", {
-      email,
-      password,
-    });
+  register: async (registration: Registration) => {
+  await apiRequest<User>('/api/auth/register', {
+    method: 'POST',
+    body: jsonBody(registration),
+  })
 
-    await signInWithCustomToken(getAuth(), response.custom_token);
+  return authApi.login({
+    email: registration.email,
+    password: registration.password,
+  })
+},
+  logout: async () => {
+    await apiRequest<void>('/api/auth/logout', {
+      method: 'POST',
+    })
 
-    return response;
+    localStorage.removeItem('nova_token')
   },
-
-  async logout() {
-    await getAuth().signOut();
-  },
-
-  async completeProfile(profileData: ProfileData) {
-    return apiClient.post<{
-      success: boolean;
-      profile_complete: boolean;
-    }>("/profile/complete", profileData);
-  },
-};
+  currentUser: () => apiRequest<User>('/api/auth/is_auth'),
+}
