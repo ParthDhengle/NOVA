@@ -171,14 +171,8 @@ select:focus-visible {
 }
 
 .brand-mark {
-  width: 25px;
-  height: 25px;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  transform: rotate(45deg);
-  box-shadow: 0 0 15px #8ed8ff33;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 55%, transparent));
 }
 
 .brand-mark span {

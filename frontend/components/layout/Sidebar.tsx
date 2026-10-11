@@ -15,7 +15,7 @@ import { ApiError } from '@/lib/api/client'
 import { chatApi } from '@/lib/api/chat'
 import type { Chat, User } from '@/lib/api/types'
 import type { Route } from '@/lib/types/route'
-
+import {NovaLogo} from '@/components/icons/NovaLogo'
 type Props = {
   route: Route
   navigate: (r: Route) => void
@@ -80,7 +80,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="brand-mark"><span /></span>
+        <NovaLogo />
         NOVA
       </div>
 
