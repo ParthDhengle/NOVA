@@ -22,14 +22,10 @@ async def lifespan(app: FastAPI):
     await langgraph_db.close()
 
 app=FastAPI(title="NOVA Backend",lifespan=lifespan)
-origins = [
-    o.strip()
-    for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-    if o.strip()
-]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://novaagent-by-parth.vercel.app/","http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
