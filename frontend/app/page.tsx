@@ -91,7 +91,7 @@ export default function Page() {
                 newChat={newChat}
                 activeChatId={activeChatId}
                 projectId={projectChatId}
-                userName={auth.user?.name ?? auth.user?.email ?? 'You'}
+                userName={auth.user?.username ?? auth.user?.email ?? 'You'}
                 onChatChanged={refreshHistory}
               />
             </div>

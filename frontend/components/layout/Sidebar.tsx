@@ -146,7 +146,7 @@ export function Sidebar({
           <Settings2 /> Settings
         </button>
         <button className="account-button" onClick={() => navigate('personalization')}>
-          <span className="avatar">{user?.name?.slice(0, 2).toUpperCase() ?? 'U'}</span>
+          <span className="avatar">{user?.username?.slice(0, 2).toUpperCase() ?? 'U'}</span>
           <span>
             <b>{user?.username ?? user?.email}</b>
             <small>{user?.email}</small>
