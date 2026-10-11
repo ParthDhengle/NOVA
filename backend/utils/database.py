@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 from .config import settings
+from psycopg.rows import dict_row
+
 
 Base= declarative_base()
 engine=create_async_engine(url=settings.SQLALCHEMY_DB_URL,echo=False)
@@ -40,6 +42,11 @@ class Database:
             conninfo=settings.LANGGRAPH_DB_URL,
             min_size=1,
             max_size=10,
+            kwargs={
+                "autocommit": True,
+                "prepare_threshold": 0,
+                "row_factory": dict_row,
+            },
             open=False,
         )
 

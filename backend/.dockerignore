@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.git/
+.github/
+*.pyc
+.env
+.ipynb_checkpoints/
+backend/ai/notebooks/

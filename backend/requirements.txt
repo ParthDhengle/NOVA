@@ -7,7 +7,7 @@ langchain-google-genai
 langchain-groq
 IPython
 langgraph-checkpoint-postgres
-sqlalchemy
+sqlalchemy[asyncio]
 psycopg[binary,pool]
 numpy
 pandas
@@ -23,6 +23,6 @@ langchain_qdrant
 google-auth 
 google-auth-oauthlib 
 google-auth-httplib2
-pwdlib
-jwt
+pwdlib[argon2]
+PyJWT
 asyncpg

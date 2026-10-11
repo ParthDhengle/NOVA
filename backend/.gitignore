@@ -1,5 +1,6 @@
 venv
 .env
+.env-docker
 _old/
 __init__
 __pycache__

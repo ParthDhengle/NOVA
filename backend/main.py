@@ -9,7 +9,7 @@ from ai.graph.main_graph import builder
 from fastapi.middleware.cors import CORSMiddleware
 from user_server.routers import user_router
 from utils.database import create_tables
-
+import os
 
 
 @asynccontextmanager
@@ -22,41 +22,27 @@ async def lifespan(app: FastAPI):
     await langgraph_db.close()
 
 app=FastAPI(title="NOVA Backend",lifespan=lifespan)
-
+origins = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 app.include_router(user_router)
 
-# @app.post("/chat")
-# async def chat(req:QuerySchema):
-#     config={"configurable":{"user_id":req.user_id, "thread_id":req.thread_id}}
-
-#     result = await app.state.graph.ainvoke(
-#         {
-#             "user_query": req.user_query,
-#             "messages": [
-#                 HumanMessage(content=req.user_query)
-#             ],
-#             "summary": "",
-#             "user_memory": [],
-#             "draft_response": "",
-#             "final_response": "",
-#             "should_write": False,
-#             "long_term_memory": [],
-#         },
-#         config=config
-#     )
-
-#     return {"response":result["final_response"]}
-
-
 @app.get("/")
 def home():
     return {
         "msg":"Welcome to NOVA Backend"
     }
+
+@app.get("/health")
+def home():
+    return {"status":"ok"}
+
