@@ -7,15 +7,15 @@
 /* -------------------------------------------------------------------------- */
 
 :root {
-  --background: #0b0d10;
+  --background: #0f1013;
   --foreground: #f4f7f8;
   --muted: #89939c;
   --border: #252b31;
-  --accent: #8ed8ff;
-  --panel: #111419;
-  --panel2: #171b20;
-  --sidebar: #0d1013;
-  --danger: #ff9caa;
+  --accent: #bfe2f5;
+  --panel: #15171b;
+  --panel2: #151718;
+  --sidebar: #16181c;
+  --danger: #f46b7d;
 }
 
 html[data-theme='light'] {
@@ -172,7 +172,6 @@ select:focus-visible {
 
 .brand-mark {
   flex-shrink: 0;
-  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 55%, transparent));
 }
 
 .brand-mark span {
