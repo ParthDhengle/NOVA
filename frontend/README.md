@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL` in `.env.local` (copy `.env.example`) and run the FastAPI service separately. The frontend has no demo-data mode and requires backend authentication and API endpoints.
+Set `API_URL` in `.env.local` (copy `.env.example`) and run the FastAPI service separately. The frontend has no demo-data mode and requires backend authentication and API endpoints.
 
 ## API architecture
 

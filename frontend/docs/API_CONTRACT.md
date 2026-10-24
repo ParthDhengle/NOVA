@@ -4,7 +4,7 @@ This document defines the HTTP interface consumed by the frontend. The frontend 
 
 ## Common conventions
 
-- Base URL: `NEXT_PUBLIC_API_URL` (set in the frontend environment; the API origin is not embedded in application code).
+- Base URL: `API_URL` (set in the frontend environment; the API origin is not embedded in application code).
 - All routes below are prefixed with `/api`.
 - Authenticated routes require the session cookie described under Authentication. `POST /auth/login`, `POST /auth/register`, and `GET /auth/me` are used to establish/check the current session; logout requires the session.
 - JSON request and response bodies use `Content-Type: application/json` and UTF-8.
