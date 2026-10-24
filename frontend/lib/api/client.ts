@@ -1,6 +1,6 @@
 import type { ApiErrorBody } from './types'
 
-const API_BASE_URL = process.env.API_URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
 export class ApiError extends Error {
   status: number
@@ -16,7 +16,7 @@ export class ApiError extends Error {
 
 export function apiUrl(path: string): string {
   if (!API_BASE_URL) {
-    throw new Error('API_URL is not configured.')
+    throw new Error('NEXT_PUBLIC_API_URL is not configured.')
   }
   return `${API_BASE_URL.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
 }
