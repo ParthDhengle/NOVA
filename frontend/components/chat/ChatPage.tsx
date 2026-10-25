@@ -312,9 +312,15 @@ export function ChatPage({ newChat, activeChatId, projectId, userName, onChatCha
 
     try {
       const result = await chatApi.send({
-        message: text,
-        chat_id: chatId ?? undefined,
-      })
+          message: text,
+          chat_id: chatId ?? undefined,
+          mode,
+          tool_ids: selectedToolIds,
+          connector_ids: connectors
+            .filter((connector) => connector.enabled)
+            .map(({ id }) => id),
+          file_ids: readyUploads.map((item) => item.uploaded.id),
+        })
 
       setChatId(result.chat_id)
       setRunId(result.run_id)
