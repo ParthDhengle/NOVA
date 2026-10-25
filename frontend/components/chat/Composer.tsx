@@ -60,7 +60,7 @@ export function Composer(p: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textRef = useRef<HTMLTextAreaElement>(null)
-
+  const canSend = p.input.trim().length > 0 && !p.disabled && !p.streaming
   const close = () => {
     setOpen(false)
     setView('root')
@@ -134,16 +134,16 @@ export function Composer(p: Props) {
         rows={1}
         value={p.input}
         onChange={(e) => p.setInput(e.target.value)}
-        onKeyDown={(e) => {
+       onKeyDown={(e) => {
           if (
             e.key === 'Enter' &&
-            p.enterToSend &&
             !e.shiftKey &&
-            !e.nativeEvent.isComposing &&
-            e.keyCode !== 229
+            !e.nativeEvent.isComposing
           ) {
             e.preventDefault()
-            if (!p.streaming && !p.disabled) p.onSend()
+            if (p.input.trim() && !p.disabled && !p.streaming) {
+              p.onSend()
+            }
           }
         }}
         placeholder={isResearch ? 'Ask a research question...' : 'Message NOVA...'}
@@ -299,8 +299,9 @@ export function Composer(p: Props) {
         </div>
 
         <button
+          type="button"
           className="send"
-          disabled={p.disabled}
+          disabled={p.disabled || (!p.streaming && !p.input.trim())}
           onClick={p.streaming ? p.onStop : p.onSend}
           aria-label={p.streaming ? 'Stop generation' : 'Send message'}
         >
@@ -325,6 +326,7 @@ function MenuItem(props: {
 }) {
   return (
     <button
+      type="button"
       role="menuitem"
       className="menu-item"
       title={props.title}

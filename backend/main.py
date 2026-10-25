@@ -8,6 +8,7 @@ from utils.database import langgraph_db
 from ai.graph.main_graph import builder
 from fastapi.middleware.cors import CORSMiddleware
 from user_server.routers import user_router
+from chat_server.routers import chat_router
 from utils.database import create_tables
 import os
 
@@ -31,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(user_router)
-
+app.include_router(chat_router)
 @app.get("/")
 def home():
     return {

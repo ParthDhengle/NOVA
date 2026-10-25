@@ -13,7 +13,7 @@ from .response_node import final_response
 builder=StateGraph(NOVAState)
 
 def have_ltm(state:NOVAState):
-    return state["should_write"]
+     return state.get("should_write", False)
 
 builder.add_node("load_memory",load_user_memory)
 builder.add_node("prepare_context",prepare_context)

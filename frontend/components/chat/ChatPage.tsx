@@ -215,15 +215,20 @@ export function ChatPage({ newChat, activeChatId, projectId, userName, onChatCha
     }
     if (event.type === 'run_complete' || event.type === 'error') {
       setStreaming(false)
+
       setMessages((current) =>
-        current.map((message) => message.streaming ? { ...message, streaming: false } : message)
+        current.map((message) =>
+          message.streaming
+            ? { ...message, streaming: false }
+            : message
+        )
       )
+
       stopRef.current?.()
       stopRef.current = null
-      onChatChanged()
       setRunId(null)
     }
-  }, [appendDelta, onChatChanged])
+      }, [appendDelta, onChatChanged])
 
   useEffect(() => {
     requestVersionRef.current += 1
@@ -270,70 +275,93 @@ export function ChatPage({ newChat, activeChatId, projectId, userName, onChatCha
       })
     return () => { cancelled = true }
   }, [activeChatId, handleEvent])
-
+  
+  const readyUploads = uploads.filter(
+    (item): item is UploadItem & { uploaded: UploadedFile } =>
+      item.status === 'ready' && item.uploaded !== undefined
+  )
+  
   const send = async () => {
     const text = input.trim()
-    if (!text || streaming || optionsLoading || optionsError) return
-    const readyUploads = uploads.filter((item) => item.status === 'ready' && item.uploaded)
-    setRequestError(null)
+    if (!text || streaming) return
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: text,
+      time: timeLabel(),
+    }
+
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: '',
+      time: timeLabel(),
+      streaming: true,
+    }
+
+    // Show both messages immediately.
     setMessages((current) => [
       ...current,
-      { id: crypto.randomUUID(), role: 'user', content: text, time: timeLabel() },
-      {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: '',
-        time: timeLabel(),
-        streaming: true,
-      },
+      userMessage,
+      assistantMessage,
     ])
     setInput('')
+    setRequestError(null)
     setStreaming(true)
-    setEvents([])
-    setApproval(null)
-    setRunId(null)
-    const requestVersion = ++requestVersionRef.current
+
     try {
       const result = await chatApi.send({
         message: text,
         chat_id: chatId ?? undefined,
-        project_id: !chatId ? projectId ?? undefined : undefined,
-        agent_id: agent || undefined,
-        model_id: model || undefined,
-        mode,
-        tool_ids: selectedToolIds,
-        connector_ids: connectors.filter((connector) => connector.enabled).map(({ id }) => id),
-        file_ids: readyUploads.map((item) => item.uploaded!.id),
       })
-      if (requestVersion !== requestVersionRef.current) {
-        try {
-          await chatApi.cancel(result.chat_id, result.run_id)
-        } catch (cause) {
-          setRequestError(cause instanceof Error ? cause.message : 'Unable to cancel the abandoned run.')
-        }
-        return
-      }
+
       setChatId(result.chat_id)
       setRunId(result.run_id)
-      setUploads((current) => current.filter((item) => !readyUploads.includes(item)))
-      onChatChanged()
-      stopRef.current = streamRun(result.chat_id, result.run_id, handleEvent, (error) => {
-        setRequestError(error.message)
-        if (error.message.includes('closed unexpectedly')) {
+
+      stopRef.current?.()
+      stopRef.current = streamRun(
+        result.chat_id,
+        result.run_id,
+        handleEvent,
+        (error) => {
+          setRequestError(error.message)
           setStreaming(false)
+
           setMessages((current) =>
-            current.map((message) => message.streaming ? { ...message, streaming: false } : message)
+            current.map((message) =>
+              message.streaming
+                ? {
+                    ...message,
+                    streaming: false,
+                    content: message.content || 'Unable to receive the response.',
+                  }
+                : message
+            )
           )
         }
-      })
-    } catch (cause) {
-      if (requestVersion !== requestVersionRef.current) return
-      setInput(text)
+      )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to send message.'
+
+      setRequestError(message)
       setStreaming(false)
-      setMessages((current) => current.filter((message) => !message.streaming))
-      setRequestError(cause instanceof Error ? cause.message : 'Unable to send your message.')
+
+      setMessages((current) =>
+        current.map((item) =>
+          item.streaming
+            ? {
+                ...item,
+                streaming: false,
+                content: 'The request failed. Please try again.',
+              }
+            : item
+        )
+      )
     }
   }
+
 
   const stop = async () => {
     requestVersionRef.current += 1
@@ -450,10 +478,31 @@ export function ChatPage({ newChat, activeChatId, projectId, userName, onChatCha
         </div>
       </div>
 
-      {(optionsError || chatError || requestError) && (
+      {(chatError || requestError) && (
         <div className="request-error request-banner" role="alert">
-          <span>{optionsError ?? chatError ?? requestError}</span>
-          {optionsError && <button className="quiet" onClick={() => setRetryOptions((count) => count + 1)}>Retry</button>}
+          <span>{chatError ?? requestError}</span>
+          {chatError && activeChatId && (
+            <button
+              className="quiet"
+              onClick={() => {
+                setChatError(null)
+                setChatLoading(true)
+                chatApi.get(activeChatId)
+                  .then((chat) => {
+                    setChatId(chat.id)
+                    setMessages(chat.messages.map(mapMessage))
+                  })
+                  .catch((error) => {
+                    setChatError(
+                      error instanceof Error ? error.message : 'Unable to load conversation.'
+                    )
+                  })
+                  .finally(() => setChatLoading(false))
+              }}
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
@@ -551,7 +600,7 @@ export function ChatPage({ newChat, activeChatId, projectId, userName, onChatCha
           onToggleConnector={(id) => void toggleConnector(id)}
           projects={projects}
           onAddToProject={(id) => void addToProject(id)}
-          disabled={optionsLoading || Boolean(optionsError) || chatLoading || uploads.some((item) => item.status !== 'ready')}
+          disabled={chatLoading}
           enterToSend={enterToSend ?? false}
         />
         {uploads.length > 0 && (

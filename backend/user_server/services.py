@@ -1,6 +1,6 @@
 from .schemas import UserSchema,UserLogin,UserResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import BackgroundTasks,HTTPException,status,Request
+from fastapi import BackgroundTasks,HTTPException,status,Request, Depends
 from .models import UserModel
 from pwdlib import PasswordHash
 # from utils.mail import simple_send
@@ -8,7 +8,7 @@ from datetime import datetime,timedelta,timezone
 from utils.config import settings
 import jwt
 from sqlalchemy import select
-
+from utils.database import get_db
 
 password_hash=PasswordHash.recommended()
 
@@ -64,30 +64,33 @@ async def login_user(body:UserLogin,db:AsyncSession,):
     return {"token": token}
 
 
-async def is_authenticated(request:Request,db:AsyncSession):
+async def is_authenticated(request:Request,db:AsyncSession=Depends(get_db)):
+    authorization=request.headers.get("authorization")
+    if not authorization:
+        raise HTTPException(401,"Login required")
+
+    scheme, _, token = authorization.partition(" ")
+    
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401,detail="Invalid authorization header")
+
     try:
-        authorization=request.headers.get("authorization")
-        if not authorization:
-            raise HTTPException(401,"Login required")
-
-        scheme, _, token = authorization.partition(" ")
-        
-        if scheme.lower() != "bearer" or not token:
-            raise HTTPException(status_code=401,detail="Invalid authorization header")
-        
         data=jwt.decode(token,settings.SECRET_KEY,algorithms=[settings.ALGORITHM])
-        user_id=data.get("_id")
-        if not user_id:
-            raise HTTPException(status_code=401,detail="Invalid token")
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+        )    
+    user_id=data.get("_id")
+    if not user_id:
+        raise HTTPException(status_code=401,detail="Invalid token")
 
-        result=await db.execute(select(UserModel).where(UserModel.user_id==user_id))
-        user=result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(401,"user not found")
-        return UserResponse(
-            id=user.user_id,
-            email=user.email,
-            username=user.user_name,
-        )
-    except Exception:
-        raise HTTPException(401,"You are unauthorized")
+    result=await db.execute(select(UserModel).where(UserModel.user_id==user_id))
+    user=result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(401,"user not found")
+    return UserResponse(
+        id=user.user_id,
+        email=user.email,
+        username=user.user_name,
+    )

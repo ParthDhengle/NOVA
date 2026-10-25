@@ -13,7 +13,14 @@ supervisor=create_supervisor(
 supervisor_graph=supervisor.compile()
 
 async def supervisor_node(state: NOVAState):
-    response = await supervisor_graph.ainvoke({"messages": state["messages"]})
+    response = await supervisor_graph.ainvoke({"messages":state.get("messages", [])})
+    messages = response.get("messages", [])
 
-    final_agent_response = response["messages"][-1]
-    return {"draft_response": final_agent_response.content}
+    if not messages:
+        raise ValueError("Supervisor returned no messages")
+
+    final_agent_response = messages[-1]
+
+    return {
+        "draft_response": final_agent_response.content or ""
+    }

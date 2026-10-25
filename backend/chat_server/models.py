@@ -30,8 +30,8 @@ class AgentRunModel(Base):
     __tablename__="agent_runs"
 
     run_id=Column(Integer,primary_key=True)
-    convo_id=Column(Integer,ForeignKey("conversation_table.convo_id",ondelete="CASCADE"),nullable=False,index=True)
-    status=Column(Enum("Queued","running","waiting_approval","completed",'failed','cancelled',name="agent_status"),nullable=False,default="queued")
+    convo_id=Column(Integer,ForeignKey("conversationsr.convo_id",ondelete="CASCADE"),nullable=False,index=True)
+    status=Column(Enum("queued","running","waiting_approval","completed",'failed','cancelled',name="agent_status"),nullable=False,default="queued")
     started_at=Column(DateTime,nullable=True,)
     completed_at=Column(DateTime,nullable=True,)
 #is their any way of langgraph automatically storing this agent run and agent events using that invoke as used in langsmith? so i dont have to create the table for them?
@@ -69,6 +69,8 @@ class MessageFileModel(Base):
         ),
     )
 class ProjectModel(Base):
+    __tablename__ = "projects"
+
     project_id=Column(Integer,primary_key=True)
     user_id=Column(Integer,nullable=False)
     title=Column(String(200),nullable=False)
@@ -76,6 +78,3 @@ class ProjectModel(Base):
     created_at=Column(DateTime,default=datetime.now,nullable=False)
     updated_at=Column(DateTime,default=datetime.now,onupdate=datetime.now, nullable=False)
     deleted_at=Column(DateTime,default=None,nullable=True)
-
-# class ProjecMemory -> handled by ltm by langgrph automatically
-

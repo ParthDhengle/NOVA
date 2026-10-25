@@ -22,6 +22,7 @@ export const chatApi = {
   list: () => apiRequest<Chat[]>('/api/chats'),
   get: (chatId: string) =>
     apiRequest<ChatDetail>(`/api/chats/${encodeURIComponent(chatId)}`),
+  
   send: (request: SendMessageRequest) =>
     apiRequest<StartRunResponse>('/api/chat', {
       method: 'POST',
